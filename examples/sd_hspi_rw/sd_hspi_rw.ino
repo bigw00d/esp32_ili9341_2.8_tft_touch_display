@@ -42,18 +42,19 @@ String SD_read() {
 
 void setup(){
   Serial.begin(115200);
+  Serial.println("start");
   spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
   if(!SD.begin( SD_SS, spiSD, SDSPEED)){
     Serial.println("Card Mount Failed");
     return;
   }
   Serial.println("Card Mount Succeeded");
-  Serial.println("read result:");
-  Serial.println(SD_read());
 }
 
 void loop() {
-  ;
+  delay(1000);
+  Serial.println("read result:");
+  Serial.println(SD_read());
 }
 
 
