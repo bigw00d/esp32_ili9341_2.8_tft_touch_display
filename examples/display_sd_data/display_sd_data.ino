@@ -48,7 +48,7 @@ SPIClass spiSD(HSPI);
 
 byte updateCount;
 
-// definition for uart
+// definition for file data
 #define RCV_BUF_SIZE 100
 unsigned long baudRate = 115200;
 char sbuf[RCV_BUF_SIZE];
@@ -63,37 +63,91 @@ TFT_eSprite spriteContents = TFT_eSprite(&tft); // Sprite object File Contents
 TFT_eSprite spriteFileName = TFT_eSprite(&tft); // Sprite object File Name
 
 boolean sdHasError;
+boolean sdFileIsOpened;
 
-String SD_read() {
+File openFile;
 
-   rcvCnt = 0;
+void open_sd_file() {
+  Serial.print("Open SD File");
+  boolean ret = false;
+  openFile = SD.open(TEXT_FILE_NAME, FILE_READ);
+  if(openFile){
+    Serial.println("...succeeded");
+    sdFileIsOpened = true;
+  } else{
+    Serial.println("...failed");
+    openFile.close();
+  }
+}
 
-   String str;
-   File file = SD.open(TEXT_FILE_NAME, FILE_READ);
+String read_sd_file_line() {
 
-   if(file){
-       //unit character(1byte)
-       while (file.available()) {
-           char rcvData = char(file.read());
-           str += rcvData;
-           if (rcvData > 31 && rcvData < 127) {
-             if( rcvCnt < (RCV_BUF_SIZE-1) ) {
-               rcvBuff[rcvCnt] = rcvData;
-               rcvCnt++;
-             }
-           }
-       }
-   } else{
-       Serial.println(" error...");
-   }
-   file.close();
+  rcvCnt = 0;
+  String str;
+  
+  if(openFile){
+    int readableSize = openFile.available();
+    while (readableSize) {
+      char rcvData = char(openFile.read());
+      readableSize = openFile.available();
+      str += rcvData;
+      if (rcvData > 31 && rcvData < 127) {
+        if( rcvCnt < (RCV_BUF_SIZE-1) ) {
+          rcvBuff[rcvCnt] = rcvData;
+          rcvCnt++;
+        }
+      }
+      else if (rcvData == '\r') {
+        readableSize = 0;
+      }
+    }
+    if (rcvCnt == 0) {
+      close_sd_file();
+    }
+  }
 
-   if (rcvCnt > 0) {
-     rcv1Line = 1;
-     rcvBuff[rcvCnt] = '\0';
-   }
-   
-   return str;
+  if (rcvCnt > 0) {
+   rcv1Line = 1;
+   rcvBuff[rcvCnt] = '\0';
+  }
+  
+  return str;
+}
+
+void close_sd_file() {
+  if(sdFileIsOpened){
+    Serial.println("Close SD File");
+    openFile.close();
+    sdFileIsOpened = false;
+  }
+}
+
+void sd_task() {
+  updateCount++;
+  if(updateCount >= SD_READ_INTERVAL_COUNT) {
+    updateCount = 0;
+    if (sdHasError) {
+      //retry establishing SD connection
+      spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
+      if(!SD.begin( SD_SS, spiSD, SDSPEED)){
+       Serial.println("Card Mount Failed");
+      }
+      Serial.println("Card Mount Succeeded");
+      sdHasError = false;
+      open_sd_file();
+    }
+    else {
+      if (sdFileIsOpened) {
+        Serial.println("read result:");
+        Serial.println(read_sd_file_line());
+      }
+      else {
+        Serial.println("SD File is not opened");
+        Serial.println("open SD File");
+        open_sd_file();
+      }
+    }
+  }
 }
  
 void setup() {
@@ -138,48 +192,35 @@ void setup() {
    Serial.println("Card Mount Succeeded");
  }
  updateCount = 0;
+
+ open_sd_file();
 }
 
 void loop() {
-
- if(rcv1Line) {
+  
+  if(rcv1Line) {
    spriteContents.setTextColor(TFT_BLUE); // color for dummy write
    int16_t widthX = spriteContents.drawString(rcvBuff, 260, (FILE_CONTENTS_HIGHT-1), 2); // dummy write for string width
    spriteContents.setTextColor(TFT_WHITE); // white text
    spriteContents.drawString(rcvBuff, widthX, (FILE_CONTENTS_HIGHT-1), 2); // plot string in font 2
- }
-
- sprintf(sbuf, "file: %s", TEXT_FILE_NAME);
- spriteFileName.drawString(sbuf, 127, 10, 1); // draw File Name
-
- if(rcv1Line) {
+  }
+  
+  sprintf(sbuf, "file: %s", TEXT_FILE_NAME);
+  spriteFileName.drawString(sbuf, 127, 10, 1); // draw File Name
+  
+  if(rcv1Line) {
    spriteContents.pushSprite(0, (BOTTOM_FILE_CONTENTS - FILE_CONTENTS_HIGHT));
- }
- spriteFileName.pushSprite(135, 230);
-
- delay(DISP_UPDATE_DELAY_MS); // wait so things do not scroll too fast
-
- if(rcv1Line) {
+  }
+  spriteFileName.pushSprite(135, 230);
+  
+  delay(DISP_UPDATE_DELAY_MS); // wait so things do not scroll too fast
+  
+  if(rcv1Line) {
    rcv1Line = 0;
    spriteContents.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL); // scroll contents pixels 16 up
- }
- spriteFileName.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL);
- updateCount++;
- if(updateCount >= SD_READ_INTERVAL_COUNT) {
-   updateCount = 0;
-   if (sdHasError) {
-     spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
-     if(!SD.begin( SD_SS, spiSD, SDSPEED)){
-       Serial.println("Card Mount Failed");
-     }
-     Serial.println("Card Mount Succeeded");
-     sdHasError = false;
-   }
-   else {
-     Serial.println("read result:");
-     Serial.println(SD_read()); 
-   }
- }
+  }
+  spriteFileName.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL);
 
+  sd_task();
 }
 
