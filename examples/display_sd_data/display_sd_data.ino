@@ -1,7 +1,19 @@
 /*
   display SD card file data example
 
- This example shows how to create and destroy an SD card file
+ Arduino board manager:
+  https://dl.espressif.com/dl/package_esp32_index.json
+
+ Arduino Settings(use Arduino 1.8.5):    
+  ボード ESP32 Dev Module
+  Flash Mode  QIO
+  Flash Frequency 40MHz
+  CPU Frequency 240MHz
+  Flash Size  4M (32Mb)
+  Partition Scheme  Huge App (3MB No OTA/1MB SPIFFS)
+  Upload Speed  115200
+  Core Debug Level なし
+
  The circuit:
  * SD card attached to SPI bus as follows:
  ** CLK - pin 14
@@ -82,10 +94,10 @@ void setup() {
 
  WiFi.disconnect(true); //disable wifi
 
- delay(500); // wait for current consumption to down
-
  Serial.begin(115200);
- 
+
+ Serial.println("start");
+
  tft.init();
  tft.setRotation(3);
  tft.fillScreen(TFT_BLACK);
@@ -110,11 +122,16 @@ void setup() {
  rcvBuff[0] = ' ';
  rcvBuff[1] = '\0';
 
+// pinMode(2, OUTPUT);
+// digitalWrite(2, HIGH);
+// delay(500); // wait for IO2 up
  spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
+// delay(1000); // wait for IO2 up
  if(!SD.begin( SD_SS, spiSD, SDSPEED)){
    Serial.println("Card Mount Failed");
    return;
  }
+// delay(1000); // wait for IO2 up
  Serial.println("Card Mount Succeeded");
  updateCount = 0;
 }
