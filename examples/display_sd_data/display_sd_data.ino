@@ -42,6 +42,10 @@ SPIClass spiSD(HSPI);
 #define FILE_CONTENTS_HIGHT (FILE_CONTENTS_LINE * CONTENTS_LINE_HIGHT_PIXEL)
 #define BOTTOM_FILE_CONTENTS 223
 
+#define DISP_UPDATE_DELAY_MS 50
+#define SD_READ_INTERVAL_MS 1000
+#define SD_READ_INTERVAL_COUNT (SD_READ_INTERVAL_MS/DISP_UPDATE_DELAY_MS)
+
 byte updateCount;
 
 // definition for uart
@@ -57,6 +61,8 @@ TFT_eSPI tft = TFT_eSPI();
 
 TFT_eSprite spriteContents = TFT_eSprite(&tft); // Sprite object File Contents
 TFT_eSprite spriteFileName = TFT_eSprite(&tft); // Sprite object File Name
+
+boolean sdHasError;
 
 String SD_read() {
 
@@ -122,23 +128,20 @@ void setup() {
  rcvBuff[0] = ' ';
  rcvBuff[1] = '\0';
 
-// pinMode(2, OUTPUT);
-// digitalWrite(2, HIGH);
-// delay(500); // wait for IO2 up
+ sdHasError = false;
  spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
-// delay(1000); // wait for IO2 up
  if(!SD.begin( SD_SS, spiSD, SDSPEED)){
    Serial.println("Card Mount Failed");
-   return;
+   sdHasError = true;
  }
-// delay(1000); // wait for IO2 up
- Serial.println("Card Mount Succeeded");
+ else {
+   Serial.println("Card Mount Succeeded");
+ }
  updateCount = 0;
 }
 
 void loop() {
 
- // draw string(scrolling strings)
  if(rcv1Line) {
    spriteContents.setTextColor(TFT_BLUE); // color for dummy write
    int16_t widthX = spriteContents.drawString(rcvBuff, 260, (FILE_CONTENTS_HIGHT-1), 2); // dummy write for string width
@@ -147,26 +150,35 @@ void loop() {
  }
 
  sprintf(sbuf, "file: %s", TEXT_FILE_NAME);
- spriteFileName.drawString(sbuf, 127, 10, 1); // draw AREA6
+ spriteFileName.drawString(sbuf, 127, 10, 1); // draw File Name
 
  if(rcv1Line) {
    spriteContents.pushSprite(0, (BOTTOM_FILE_CONTENTS - FILE_CONTENTS_HIGHT));
  }
  spriteFileName.pushSprite(135, 230);
 
- delay(50); // wait so things do not scroll too fast
+ delay(DISP_UPDATE_DELAY_MS); // wait so things do not scroll too fast
 
  if(rcv1Line) {
    rcv1Line = 0;
-   spriteContents.scroll(0,-16); // scroll contents pixels 16 up
+   spriteContents.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL); // scroll contents pixels 16 up
  }
- spriteFileName.scroll(0,-16);
-
+ spriteFileName.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL);
  updateCount++;
- if(updateCount >= 20) {
+ if(updateCount >= SD_READ_INTERVAL_COUNT) {
    updateCount = 0;
-   Serial.println("read result:");
-   Serial.println(SD_read()); 
+   if (sdHasError) {
+     spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
+     if(!SD.begin( SD_SS, spiSD, SDSPEED)){
+       Serial.println("Card Mount Failed");
+     }
+     Serial.println("Card Mount Succeeded");
+     sdHasError = false;
+   }
+   else {
+     Serial.println("read result:");
+     Serial.println(SD_read()); 
+   }
  }
 
 }
