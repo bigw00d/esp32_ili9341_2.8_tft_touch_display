@@ -1,5 +1,5 @@
 /*
-  SD card basic file example
+  display SD card file data example
 
  This example shows how to create and destroy an SD card file
  The circuit:
@@ -25,6 +25,11 @@ SPIClass spiSD(HSPI);
 
 #define TEXT_FILE_NAME "/hello.txt"
 
+#define FILE_CONTENTS_LINE 13
+#define CONTENTS_LINE_HIGHT_PIXEL 16
+#define FILE_CONTENTS_HIGHT (FILE_CONTENTS_LINE * CONTENTS_LINE_HIGHT_PIXEL)
+#define BOTTOM_FILE_CONTENTS 223
+
 byte updateCount;
 
 // definition for uart
@@ -38,8 +43,8 @@ byte rcvData;
 
 TFT_eSPI tft = TFT_eSPI();
 
-TFT_eSprite stext4 = TFT_eSprite(&tft); // Sprite object stext4 // all received uart data(only a part of ascii)
-TFT_eSprite stext5 = TFT_eSprite(&tft); // Sprite object stext5 // display baudRate rate
+TFT_eSprite spriteContents = TFT_eSprite(&tft); // Sprite object File Contents
+TFT_eSprite spriteFileName = TFT_eSprite(&tft); // Sprite object File Name
 
 String SD_read() {
 
@@ -72,7 +77,7 @@ String SD_read() {
    
    return str;
 }
-
+ 
 void setup() {
 
  WiFi.disconnect(true); //disable wifi
@@ -86,20 +91,20 @@ void setup() {
  tft.fillScreen(TFT_BLACK);
 
  // Create a sprite for scrolling strings(all received uart data)
- stext4.setColorDepth(8);
- stext4.createSprite(261, 128);
- stext4.fillSprite(TFT_BLUE); // Fill sprite with blue
- stext4.setScrollRect(0, 0, 261, 128, TFT_BLUE);     // here we set scroll gap fill color to blue
- stext4.setTextColor(TFT_WHITE); // White text, no background
- stext4.setTextDatum(BR_DATUM);  // Bottom right coordinate datum
+ spriteContents.setColorDepth(8);
+ spriteContents.createSprite(261, FILE_CONTENTS_HIGHT);
+ spriteContents.fillSprite(TFT_BLUE); // Fill sprite with blue
+ spriteContents.setScrollRect(0, 0, 261, FILE_CONTENTS_HIGHT, TFT_BLUE);     // here we set scroll gap fill color to blue
+ spriteContents.setTextColor(TFT_WHITE); // White text, no background
+ spriteContents.setTextDatum(BR_DATUM);  // Bottom right coordinate datum
 
  // Create a sprite for baudRate rate
- stext5.setColorDepth(8);
- stext5.createSprite(128, 16);
- stext5.fillSprite(TFT_BLACK); // Fill sprite with black
- stext5.setScrollRect(0, 0, 128, 16, TFT_BLACK);     // here we set scroll gap fill color to blue
- stext5.setTextColor(TFT_WHITE); // White text, no background
- stext5.setTextDatum(BR_DATUM);  // Bottom right coordinate datum
+ spriteFileName.setColorDepth(8);
+ spriteFileName.createSprite(128, 16);
+ spriteFileName.fillSprite(TFT_BLACK); // Fill sprite with black
+ spriteFileName.setScrollRect(0, 0, 128, 16, TFT_BLACK);     // here we set scroll gap fill color to blue
+ spriteFileName.setTextColor(TFT_WHITE); // White text, no background
+ spriteFileName.setTextDatum(BR_DATUM);  // Bottom right coordinate datum
 
  rcv1Line = 1;
  rcvBuff[0] = ' ';
@@ -114,33 +119,31 @@ void setup() {
  updateCount = 0;
 }
 
-
 void loop() {
 
  // draw string(scrolling strings)
  if(rcv1Line) {
-   stext4.setTextColor(TFT_BLUE); // color for dummy write
-   int16_t widthX = stext4.drawString(rcvBuff, 260, 127, 2); // dummy write for string width
-   stext4.setTextColor(TFT_WHITE); // white text
-   stext4.drawString(rcvBuff, widthX, 127, 2); // plot string in font 2
+   spriteContents.setTextColor(TFT_BLUE); // color for dummy write
+   int16_t widthX = spriteContents.drawString(rcvBuff, 260, (FILE_CONTENTS_HIGHT-1), 2); // dummy write for string width
+   spriteContents.setTextColor(TFT_WHITE); // white text
+   spriteContents.drawString(rcvBuff, widthX, (FILE_CONTENTS_HIGHT-1), 2); // plot string in font 2
  }
 
- // draw string(baudRate rate)
  sprintf(sbuf, "file: %s", TEXT_FILE_NAME);
- stext5.drawString(sbuf, 127, 10, 1); // draw AREA6
+ spriteFileName.drawString(sbuf, 127, 10, 1); // draw AREA6
 
  if(rcv1Line) {
-   stext4.pushSprite(0, 95);
+   spriteContents.pushSprite(0, (BOTTOM_FILE_CONTENTS - FILE_CONTENTS_HIGHT));
  }
- stext5.pushSprite(135, 230);
+ spriteFileName.pushSprite(135, 230);
 
  delay(50); // wait so things do not scroll too fast
 
  if(rcv1Line) {
    rcv1Line = 0;
-   stext4.scroll(0,-16); // scroll stext 4 pixels left/right, 16 up
+   spriteContents.scroll(0,-16); // scroll contents pixels 16 up
  }
- stext5.scroll(0,-16);
+ spriteFileName.scroll(0,-16);
 
  updateCount++;
  if(updateCount >= 20) {
