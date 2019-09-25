@@ -149,6 +149,29 @@ void sd_task() {
     }
   }
 }
+
+void display_task() {
+  if(rcv1Line) {
+   spriteContents.setTextColor(TFT_BLUE); // color for dummy write
+   int16_t widthX = spriteContents.drawString(rcvBuff, 260, (FILE_CONTENTS_HIGHT-1), 2); // dummy write for string width
+   spriteContents.setTextColor(TFT_WHITE); // white text
+   spriteContents.drawString(rcvBuff, widthX, (FILE_CONTENTS_HIGHT-1), 2); // plot string in font 2
+  }
+  
+  sprintf(sbuf, "file: %s", TEXT_FILE_NAME);
+  spriteFileName.drawString(sbuf, 127, 10, 1); // draw File Name
+  
+  if(rcv1Line) {
+   spriteContents.pushSprite(0, (BOTTOM_FILE_CONTENTS - FILE_CONTENTS_HIGHT));
+  }
+  spriteFileName.pushSprite(135, 230);
+
+  if(rcv1Line) {
+   rcv1Line = 0;
+   spriteContents.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL); // scroll contents pixels 16 up
+  }
+  spriteFileName.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL);
+}
  
 void setup() {
 
@@ -197,30 +220,8 @@ void setup() {
 }
 
 void loop() {
-  
-  if(rcv1Line) {
-   spriteContents.setTextColor(TFT_BLUE); // color for dummy write
-   int16_t widthX = spriteContents.drawString(rcvBuff, 260, (FILE_CONTENTS_HIGHT-1), 2); // dummy write for string width
-   spriteContents.setTextColor(TFT_WHITE); // white text
-   spriteContents.drawString(rcvBuff, widthX, (FILE_CONTENTS_HIGHT-1), 2); // plot string in font 2
-  }
-  
-  sprintf(sbuf, "file: %s", TEXT_FILE_NAME);
-  spriteFileName.drawString(sbuf, 127, 10, 1); // draw File Name
-  
-  if(rcv1Line) {
-   spriteContents.pushSprite(0, (BOTTOM_FILE_CONTENTS - FILE_CONTENTS_HIGHT));
-  }
-  spriteFileName.pushSprite(135, 230);
-  
-  delay(DISP_UPDATE_DELAY_MS); // wait so things do not scroll too fast
-  
-  if(rcv1Line) {
-   rcv1Line = 0;
-   spriteContents.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL); // scroll contents pixels 16 up
-  }
-  spriteFileName.scroll(0,(-1)*CONTENTS_LINE_HIGHT_PIXEL);
-
+  display_task();
   sd_task();
+  delay(DISP_UPDATE_DELAY_MS); // wait so things do not scroll too fast  
 }
 
