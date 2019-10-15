@@ -26,6 +26,9 @@
 #include <Update.h>
 #include <TFT_eSPI.h>
 
+#include "esp_partition.h"
+#include "esp_ota_ops.h"
+
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
@@ -111,20 +114,24 @@ void updateFromFS(fs::FS &fs) {
   // whe finished remove the binary from sd card to indicate end of the process
   fs.remove("/update.bin");
 
-  rebootEspWithReason(String("Reboot after Update")); 
+  rebootEspWithReason("Reboot after Update"); 
 }
 
-void setup() {
-  uint8_t cardType;
-  Serial.begin(115200);
-  Serial.println("Welcome to the SD-Update example!");
-  
+void tft_init() {
   tft.init();
   tft.setRotation(3);
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE, TFT_BLACK); // Set the font color and the background color
   tft.setTextSize(2);
   tft.setCursor(0, 0); // Set cursor at top left of screen
+}
+
+void setup() {
+  uint8_t cardType;
+  Serial.begin(115200);
+  Serial.println("Welcome to the SD-Update example!");
+
+  tft_init();
 
   tft.print("sd card mount...");
   spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
@@ -138,7 +145,7 @@ void setup() {
     tft.print("check new fw");
     tft.print("...");
     if (updateFileIsAvailable(SD)) {
-      tft.println("OK");
+      tft.println("DETECT");
       int count;
       for(count = 10; count >= 0; count--) {
         Serial.printf("%d ", count);
@@ -148,7 +155,7 @@ void setup() {
       updateFromFS(SD);
     }
     else {
-      tft.println("NG");
+      tft.println("NO FILE");
     }
   }
 
@@ -160,8 +167,34 @@ void rebootEspWithReason(String reason){
     ESP.restart();
 }
 
+#define STRING_BUF_SIZE 100
+const esp_partition_t *running;
+char buf[STRING_BUF_SIZE];
+
 //will not be reached
 void loop() {
-  
+  running = esp_ota_get_running_partition();
+  Serial.printf("Running partition type %d subtype %d (offset 0x%08x)\r\n",
+             running->type, running->subtype, running->address);
+  memset(buf, 0, STRING_BUF_SIZE);
+  sprintf(buf, "Running partition type %d", running->type);
+  tft.print(buf);
+  tft.println(); 
+  memset(buf, 0, STRING_BUF_SIZE);
+  sprintf(buf, "Running partition subtype %d", running->subtype);
+  tft.print(buf);
+  tft.println(); 
+  memset(buf, 0, STRING_BUF_SIZE);
+  sprintf(buf, "(offset 0x%08x)",
+             running->address);
+  tft.print(buf);
+  tft.println();
+
+  tft.print("restart...");
+
+  delay(5000);
+
+  rebootEspWithReason("End Normal Routine");
+
 }
 
