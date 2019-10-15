@@ -39,11 +39,14 @@ SPIClass spiSD(HSPI);
 #define SD_SS 13
 #define SDSPEED 27000000
 
+#define UPDATE_FILE_NAME "/update.bin"
+#define MAX_SD_MOUNT_RETRY_COUNT 2
+
 TFT_eSPI tft = TFT_eSPI();
 
 // perform the actual update from a given stream
 void performUpdate(Stream &updateSource, size_t updateSize) {
-  tft.print("start update...");
+  tft.print("updating...");
   if (Update.begin(updateSize)) {
     size_t written = Update.writeStream(updateSource);
     if (written == updateSize) {
@@ -53,8 +56,8 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
        Serial.println("Written only : " + String(written) + "/" + String(updateSize) + ". Retry?");
     }
     if (Update.end()) {
-      Serial.println("update done!");
-      tft.println("update done!");
+      Serial.println("done!");
+      tft.println("done!");
       if (Update.isFinished()) {
         Serial.println("Update successfully completed. Rebooting.");
       }
@@ -72,8 +75,6 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
     Serial.println("Not enough space to begin OTA");
   }
 }
-
-#define UPDATE_FILE_NAME "/update.bin"
 
 // check update.bin if available
 boolean updateFileIsAvailable(fs::FS &fs) {
@@ -133,16 +134,24 @@ void setup() {
 
   tft_init();
 
-  tft.print("sd card mount...");
-  spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
-  if(!SD.begin( SD_SS, spiSD, SDSPEED)){
-    tft.println("FAILED");
-    startRestartTimer("Card Mount Failed", 10);
+  tft.print("SD card mount...");
+  boolean sdMoundIsOK;
+  int count;
+  for(count = 0; count < MAX_SD_MOUNT_RETRY_COUNT; count++) {
+    spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
+    if(!SD.begin( SD_SS, spiSD, SDSPEED)){
+      sdMoundIsOK = false;
+    }
+    else {
+      sdMoundIsOK = true;
+      break;
+    }
   }
-  else {
+  
+  if(sdMoundIsOK) {
     tft.println("OK");
     Serial.println("Card Mount Succeeded");
-    tft.print("check new fw");
+    tft.print("Check new firm");
     tft.print("...");
     if (updateFileIsAvailable(SD)) {
       tft.println("DETECT");
@@ -152,6 +161,9 @@ void setup() {
     else {
       tft.println("NO FILE");
     }
+  }
+  else {
+    tft.println("FAILED"); // sd mount failed
   }
 
 }
@@ -177,7 +189,7 @@ void countdownEventTimer(String event, int sec) {
 }
 
 void startRestartTimer(String reason, int sec) {
-  countdownEventTimer("restart", 10);
+  countdownEventTimer("Restart", 10);
   rebootEspWithReason(reason);
 }
 
@@ -190,20 +202,10 @@ void loop() {
   running = esp_ota_get_running_partition();
   Serial.printf("Running partition type %d subtype %d (offset 0x%08x)\r\n",
              running->type, running->subtype, running->address);
-  memset(buf, 0, STRING_BUF_SIZE);
-  sprintf(buf, "Partition type %d", running->type);
-  tft.print(buf);
-  tft.println(); 
-  memset(buf, 0, STRING_BUF_SIZE);
-  sprintf(buf, "Partition subtype %d", running->subtype);
-  tft.print(buf);
-  tft.println(); 
-  memset(buf, 0, STRING_BUF_SIZE);
-  sprintf(buf, "Partition address 0x%08x)",running->address);
-  tft.print(buf);
-  tft.println();
+  tft.printf("Partition type %d\n", running->type);
+  tft.printf("Partition subtype %d\n", running->subtype);
+  tft.printf("Partition address 0x%06x\n", running->address);
 
-  startRestartTimer("End Normal Routine", 10);
-
+  startRestartTimer("Finish Normal Routine", 10);
 }
 
