@@ -65,34 +65,47 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
    }
 }
 
-// check given FS for valid update.bin and perform update if available
-void updateFromFS(fs::FS &fs) {
-  File updateBin = fs.open("/update.bin");
+#define UPDATE_FILE_NAME "/update.bin"
+
+// check update.bin if available
+boolean updateFileIsAvailable(fs::FS &fs) {
+  boolean ret = false;
+  
+  File updateBin = fs.open(UPDATE_FILE_NAME);
   if (updateBin) {
     if(updateBin.isDirectory()){
        Serial.println("Error, update.bin is not a file");
-       updateBin.close();
-       return;
-    }
-  
-    size_t updateSize = updateBin.size();
-  
-    if (updateSize > 0) {
-       Serial.println("Try to start update");
-       performUpdate(updateBin, updateSize);
     }
     else {
-       Serial.println("Error, file is empty");
+      size_t updateSize = updateBin.size();
+      if (updateSize > 0) {
+         Serial.println("update.bin is available");
+         ret = true;
+      }
+      else {
+         Serial.println("Error, file is empty");
+      }
     }
-  
     updateBin.close();
-  
-    // whe finished remove the binary from sd card to indicate end of the process
-    fs.remove("/update.bin");
   }
   else {
     Serial.println("Could not load update.bin from sd root");
   }
+
+  return ret;
+}
+
+// check given FS for valid update.bin and perform update if available
+void updateFromFS(fs::FS &fs) {
+  File updateBin = fs.open(UPDATE_FILE_NAME);
+
+  Serial.println("Try to start update");
+  size_t updateSize = updateBin.size();
+  performUpdate(updateBin, updateSize);  
+  updateBin.close();
+  // whe finished remove the binary from sd card to indicate end of the process
+  fs.remove("/update.bin");
+
   rebootEspWithReason(String("Reboot after Update")); 
 }
 
@@ -110,13 +123,15 @@ void setup() {
   }
   else {
     Serial.println("Card Mount Succeeded");
-    int count;
-    for(count = 10; count >= 0; count--) {
-      Serial.printf("%d ", count);
-      delay(1000);
+    if (updateFileIsAvailable(SD)) {
+      int count;
+      for(count = 10; count >= 0; count--) {
+        Serial.printf("%d ", count);
+        delay(1000);
+      }
+      Serial.println("Start SD-Update");
+      updateFromFS(SD);
     }
-    Serial.println("Start SD-Update");
-    updateFromFS(SD);
   }
 
 }
@@ -131,4 +146,3 @@ void rebootEspWithReason(String reason){
 void loop() {
   
 }
-
