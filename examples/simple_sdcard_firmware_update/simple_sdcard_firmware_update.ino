@@ -5,14 +5,14 @@
   https://dl.espressif.com/dl/package_esp32_index.json
 
  Arduino Settings(use Arduino 1.8.5):    
-  ボード ESP32 Dev Module
+  Board ESP32 Dev Module
   Flash Mode  QIO
   Flash Frequency 40MHz
   CPU Frequency 240MHz
   Flash Size  4M (32Mb)
-  Partition Scheme  Huge App (3MB No OTA/1MB SPIFFS)
+  Partition Scheme  Default 4MB with spiffs(1.2MB APP / 1.5MB SPIFFS)
   Upload Speed  115200
-  Core Debug Level なし
+  Core Debug Level non
 
  The circuit:
  * SD card attached to SPI bus as follows:
@@ -67,32 +67,33 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
 
 // check given FS for valid update.bin and perform update if available
 void updateFromFS(fs::FS &fs) {
-   File updateBin = fs.open("/update.bin");
-   if (updateBin) {
-      if(updateBin.isDirectory()){
-         Serial.println("Error, update.bin is not a file");
-         updateBin.close();
-         return;
-      }
-
-      size_t updateSize = updateBin.size();
-
-      if (updateSize > 0) {
-         Serial.println("Try to start update");
-         performUpdate(updateBin, updateSize);
-      }
-      else {
-         Serial.println("Error, file is empty");
-      }
-
-      updateBin.close();
-    
-      // whe finished remove the binary from sd card to indicate end of the process
-      fs.remove("/update.bin");      
-   }
-   else {
-      Serial.println("Could not load update.bin from sd root");
-   }
+  File updateBin = fs.open("/update.bin");
+  if (updateBin) {
+    if(updateBin.isDirectory()){
+       Serial.println("Error, update.bin is not a file");
+       updateBin.close();
+       return;
+    }
+  
+    size_t updateSize = updateBin.size();
+  
+    if (updateSize > 0) {
+       Serial.println("Try to start update");
+       performUpdate(updateBin, updateSize);
+    }
+    else {
+       Serial.println("Error, file is empty");
+    }
+  
+    updateBin.close();
+  
+    // whe finished remove the binary from sd card to indicate end of the process
+    fs.remove("/update.bin");
+  }
+  else {
+    Serial.println("Could not load update.bin from sd root");
+  }
+  rebootEspWithReason(String("Reboot after Update")); 
 }
 
 void setup() {
@@ -105,11 +106,15 @@ void setup() {
 
   spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
   if(!SD.begin( SD_SS, spiSD, SDSPEED)){
-    Serial.println("Card Mount Failed");
+    rebootEspWithReason("Card Mount Failed");
   }
   else {
     Serial.println("Card Mount Succeeded");
-    delay(5000);
+    int count;
+    for(count = 10; count >= 0; count--) {
+      Serial.printf("%d ", count);
+      delay(1000);
+    }
     Serial.println("Start SD-Update");
     updateFromFS(SD);
   }
