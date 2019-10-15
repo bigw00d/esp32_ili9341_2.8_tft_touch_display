@@ -25,6 +25,7 @@
 
 #include <Update.h>
 #include <TFT_eSPI.h>
+#include <WiFiMulti.h>
 
 #include "esp_partition.h"
 #include "esp_ota_ops.h"
@@ -42,11 +43,16 @@ SPIClass spiSD(HSPI);
 #define UPDATE_FILE_NAME "/update.bin"
 #define MAX_SD_MOUNT_RETRY_COUNT 2
 
+const int ledPin = 27;
+
+int ledState = LOW;
 TFT_eSPI tft = TFT_eSPI();
+
+const esp_partition_t *running;
 
 // perform the actual update from a given stream
 void performUpdate(Stream &updateSource, size_t updateSize) {
-  tft.print("updating...");
+  tft.print("Updating...");
   if (Update.begin(updateSize)) {
     size_t written = Update.writeStream(updateSource);
     if (written == updateSize) {
@@ -67,8 +73,7 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
     }
     else {
        Serial.println("Error Occurred. Error #: " + String(Update.getError()));
-    }
-  
+    }  
   }
   else
   {
@@ -108,7 +113,7 @@ boolean updateFileIsAvailable(fs::FS &fs) {
 void updateFromFS(fs::FS &fs) {
   File updateBin = fs.open(UPDATE_FILE_NAME);
 
-  Serial.println("Try to start update");
+  Serial.println("Starting update");
   size_t updateSize = updateBin.size();
   performUpdate(updateBin, updateSize);  
   updateBin.close();
@@ -129,12 +134,17 @@ void tft_init() {
 
 void setup() {
   uint8_t cardType;
+
+  WiFi.disconnect(true); //disable wifi  
+  
   Serial.begin(115200);
   Serial.println("Welcome to the SD-Update example!");
 
+  pinMode(ledPin, OUTPUT);
+
   tft_init();
 
-  tft.print("SD card mount...");
+  tft.print("Mounting SDcard...");
   boolean sdMoundIsOK;
   int count;
   for(count = 0; count < MAX_SD_MOUNT_RETRY_COUNT; count++) {
@@ -151,15 +161,14 @@ void setup() {
   if(sdMoundIsOK) {
     tft.println("OK");
     Serial.println("Card Mount Succeeded");
-    tft.print("Check new firm");
-    tft.print("...");
+    tft.print("Checking new app...");
     if (updateFileIsAvailable(SD)) {
-      tft.println("DETECT");
+      tft.println("FOUND");
       countdownEventTimer("Start firm update", 10);
       updateFromFS(SD);
     }
     else {
-      tft.println("NO FILE");
+      tft.println("NOT FOUND");
     }
   }
   else {
@@ -179,13 +188,24 @@ void countdownEventTimer(String event, int sec) {
   int16_t curX = tft.getCursorX();
   int16_t curY = tft.getCursorY();
   int count;
+
+  digitalWrite(ledPin, LOW);
   for(count = sec; count >= 0; count--) {
     Serial.printf("%d ", count);
     tft.setCursor(curX, curY);
     tft.printf(" %d sec  ", count);
+
+    if (ledState == LOW) {
+      ledState = HIGH;
+    } else {
+      ledState = LOW;
+    }
+    digitalWrite(ledPin, ledState);
+
     delay(1000);
   }
   tft.println("");
+  digitalWrite(ledPin, LOW);
 }
 
 void startRestartTimer(String reason, int sec) {
@@ -193,18 +213,11 @@ void startRestartTimer(String reason, int sec) {
   rebootEspWithReason(reason);
 }
 
-#define STRING_BUF_SIZE 100
-const esp_partition_t *running;
-char buf[STRING_BUF_SIZE];
-
-//will not be reached
 void loop() {
   running = esp_ota_get_running_partition();
   Serial.printf("Running partition type %d subtype %d (offset 0x%08x)\r\n",
              running->type, running->subtype, running->address);
-  tft.printf("Partition type %d\n", running->type);
-  tft.printf("Partition subtype %d\n", running->subtype);
-  tft.printf("Partition address 0x%06x\n", running->address);
+  tft.printf("running partition address:0x%06x\n", running->address);
 
   startRestartTimer("Finish Normal Routine", 10);
 }
