@@ -137,7 +137,7 @@ void setup() {
   spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
   if(!SD.begin( SD_SS, spiSD, SDSPEED)){
     tft.println("FAILED");
-    rebootEspWithReason("Card Mount Failed");
+    startRestartTimer("Card Mount Failed", 10);
   }
   else {
     tft.println("OK");
@@ -146,12 +146,7 @@ void setup() {
     tft.print("...");
     if (updateFileIsAvailable(SD)) {
       tft.println("DETECT");
-      int count;
-      for(count = 10; count >= 0; count--) {
-        Serial.printf("%d ", count);
-        delay(1000);
-      }
-      Serial.println("Start SD-Update");
+      countdownEventTimer("Start firm update", 10);
       updateFromFS(SD);
     }
     else {
@@ -167,6 +162,25 @@ void rebootEspWithReason(String reason){
     ESP.restart();
 }
 
+void countdownEventTimer(String event, int sec) {
+  tft.printf("%s in", event.c_str());
+  int16_t curX = tft.getCursorX();
+  int16_t curY = tft.getCursorY();
+  int count;
+  for(count = sec; count >= 0; count--) {
+    Serial.printf("%d ", count);
+    tft.setCursor(curX, curY);
+    tft.printf(" %d sec  ", count);
+    delay(1000);
+  }
+  tft.println("");
+}
+
+void startRestartTimer(String reason, int sec) {
+  countdownEventTimer("restart", 10);
+  rebootEspWithReason(reason);
+}
+
 #define STRING_BUF_SIZE 100
 const esp_partition_t *running;
 char buf[STRING_BUF_SIZE];
@@ -177,24 +191,19 @@ void loop() {
   Serial.printf("Running partition type %d subtype %d (offset 0x%08x)\r\n",
              running->type, running->subtype, running->address);
   memset(buf, 0, STRING_BUF_SIZE);
-  sprintf(buf, "Running partition type %d", running->type);
+  sprintf(buf, "Partition type %d", running->type);
   tft.print(buf);
   tft.println(); 
   memset(buf, 0, STRING_BUF_SIZE);
-  sprintf(buf, "Running partition subtype %d", running->subtype);
+  sprintf(buf, "Partition subtype %d", running->subtype);
   tft.print(buf);
   tft.println(); 
   memset(buf, 0, STRING_BUF_SIZE);
-  sprintf(buf, "(offset 0x%08x)",
-             running->address);
+  sprintf(buf, "Partition address 0x%08x)",running->address);
   tft.print(buf);
   tft.println();
 
-  tft.print("restart...");
-
-  delay(5000);
-
-  rebootEspWithReason("End Normal Routine");
+  startRestartTimer("End Normal Routine", 10);
 
 }
 
