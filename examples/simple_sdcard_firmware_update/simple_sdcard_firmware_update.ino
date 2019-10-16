@@ -38,6 +38,8 @@ SPIClass spiSD(HSPI);
 #define SD_SS 13
 #define SDSPEED 27000000
 
+#define UPDATE_FILE_NAME "/update.bin"
+
 const esp_partition_t *running;
 
 // perform the update from a given stream
@@ -69,16 +71,14 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
    }
 }
 
-#define UPDATE_FILE_NAME "/update.bin"
-
-// check update.bin if available
+// check update file is available
 boolean updateFileIsAvailable(fs::FS &fs) {
   boolean ret = false;
   
   File updateBin = fs.open(UPDATE_FILE_NAME);
   if (updateBin) {
     if(updateBin.isDirectory()){
-       Serial.println("Error, update.bin is not a file");
+       Serial.println("Error, new firmware is not a file");
     }
     else {
       size_t updateSize = updateBin.size();
@@ -92,7 +92,7 @@ boolean updateFileIsAvailable(fs::FS &fs) {
     updateBin.close();
   }
   else {
-    Serial.println("Could not load update.bin from sd root");
+    Serial.println("Could not load new firmware file from sd root");
   }
 
   return ret;
@@ -107,7 +107,7 @@ void updateFromFS(fs::FS &fs) {
   updateBin.close();
 
   // remove the update file from sd card to indicate end of the process
-  fs.remove("/update.bin");
+  fs.remove(UPDATE_FILE_NAME);
 
   reboot();
 }
