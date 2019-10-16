@@ -25,6 +25,9 @@
 
 #include <Update.h>
 
+#include "esp_partition.h"
+#include "esp_ota_ops.h"
+
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
@@ -35,7 +38,9 @@ SPIClass spiSD(HSPI);
 #define SD_SS 13
 #define SDSPEED 27000000
 
-// perform the actual update from a given stream
+const esp_partition_t *running;
+
+// perform the update from a given stream
 void performUpdate(Stream &updateSource, size_t updateSize) {
    if (Update.begin(updateSize)) {      
       size_t written = Update.writeStream(updateSource);
@@ -46,7 +51,7 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
          Serial.println("Written only : " + String(written) + "/" + String(updateSize) + ". Retry?");
       }
       if (Update.end()) {
-         Serial.println("OTA done!");
+         Serial.println("done!");
          if (Update.isFinished()) {
             Serial.println("Update successfully completed. Rebooting.");
          }
@@ -57,7 +62,6 @@ void performUpdate(Stream &updateSource, size_t updateSize) {
       else {
          Serial.println("Error Occurred. Error #: " + String(Update.getError()));
       }
-
    }
    else
    {
@@ -79,7 +83,6 @@ boolean updateFileIsAvailable(fs::FS &fs) {
     else {
       size_t updateSize = updateBin.size();
       if (updateSize > 0) {
-         Serial.println("update.bin is available");
          ret = true;
       }
       else {
@@ -99,50 +102,55 @@ boolean updateFileIsAvailable(fs::FS &fs) {
 void updateFromFS(fs::FS &fs) {
   File updateBin = fs.open(UPDATE_FILE_NAME);
 
-  Serial.println("Try to start update");
   size_t updateSize = updateBin.size();
   performUpdate(updateBin, updateSize);  
   updateBin.close();
-  // whe finished remove the binary from sd card to indicate end of the process
+
+  // remove the update file from sd card to indicate end of the process
   fs.remove("/update.bin");
 
-  rebootEspWithReason(String("Reboot after Update")); 
+  reboot();
 }
 
 void setup() {
-  uint8_t cardType;
   Serial.begin(115200);
-  Serial.println("Welcome to the SD-Update example!");
-  
-  // You can uncomment this and build again
-  // Serial.println("Update successfull");
 
+  running = esp_ota_get_running_partition();
+  Serial.printf("running partition address:0x%08x", running->address);
+  Serial.println("");
+
+  Serial.print("Checking new firmware...");
   spiSD.begin(SD_CLK, SD_MISO, SD_MOSI, SD_SS);
+  boolean newFirmIsOK;
   if(!SD.begin( SD_SS, spiSD, SDSPEED)){
-    rebootEspWithReason("Card Mount Failed");
+    newFirmIsOK = false;
   }
   else {
-    Serial.println("Card Mount Succeeded");
     if (updateFileIsAvailable(SD)) {
-      int count;
-      for(count = 10; count >= 0; count--) {
-        Serial.printf("%d ", count);
-        delay(1000);
-      }
-      Serial.println("Start SD-Update");
-      updateFromFS(SD);
+      newFirmIsOK = true;
     }
+    else {
+      newFirmIsOK = false;
+    }
+  }
+  if (newFirmIsOK) {
+    Serial.println("OK");
+    Serial.println("Start firm update");
+    updateFromFS(SD);
+  }
+  else {
+    Serial.println("FAILED");
+    reboot();
   }
 
 }
 
-void rebootEspWithReason(String reason){
-    Serial.println(reason);
-    delay(1000);
+void reboot(){
+    Serial.println("Reboot");
+    delay(3000);
     ESP.restart();
 }
 
-//will not be reached
 void loop() {
-  
+  ; //will not be reached  
 }
