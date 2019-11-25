@@ -8,7 +8,7 @@ Example for lcd back light on/off with touch detection
 - [ESPr® Developer 32](https://www.switch-science.com/catalog/3210/)
 - [HiLetgo® 240X320 Resolution 2,8" SPI TFT LCD Display Touch Panel](https://www.amazon.co.jp/HiLetgo%C2%AE-LCD%E3%83%87%E3%82%A3%E3%82%B9%E3%83%97%E3%83%AC%E3%82%A4-%E3%82%BF%E3%83%83%E3%83%81%E3%83%91%E3%83%8D%E3%83%AB-SPI%E3%82%B7%E3%83%AA%E3%82%A2%E3%83%AB240-ILI9341/dp/B072N551V3)
 
-# Pin connections
+## Pin connections
 
 |ESP32  |LCD  |
 |---|---|
