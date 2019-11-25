@@ -15,3 +15,9 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+## Examples
+
+### simple_touch_lcd_backlight_on
+ - [Example for lcd back light on/off with touch detection](./simple_touch_lcd_backlight_on) 
+
