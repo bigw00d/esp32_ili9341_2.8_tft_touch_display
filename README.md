@@ -19,5 +19,5 @@
 ## Examples
 
 ### simple_touch_lcd_backlight_on
- - [Example for lcd back light on/off with touch detection](./simple_touch_lcd_backlight_on) 
+ - [Example for lcd back light on/off with touch detection](./examples/simple_touch_lcd_backlight_on) 
 
