@@ -6,7 +6,7 @@
 //    Flash Mode  QIO
 //    Flash Frequency 80MHz
 //    Flash Size  4M (32Mb)
-//    Partition Scheme  No OTA (2MB APP/2MB FATFS) <- important!
+//    Partition Scheme  No OTA (2MB APP/2MB FATFS)
 //    Upload Speed  115200
 //    Core Debug Level なし
 
